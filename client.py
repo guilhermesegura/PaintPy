@@ -1,24 +1,47 @@
-import tkinter as tk
-from ui import PaintUI
-from drawing_tools import DrawingTools
-from PIL import Image, ImageDraw
-import threading
+# cliente_oo.py
 
-class PaintApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Advanced Paint App")
-        self.root.geometry("1200x800")
+import socket
 
-        # Initialize PIL image and draw context (will be updated by UI on canvas setup)
-        # These are placeholders until the canvas size is known
-        initial_pil_image = Image.new("RGB", (1, 1), "white")
-        initial_draw_context = ImageDraw.Draw(initial_pil_image)
+class Cliente:
 
-        self.drawing_tools = DrawingTools(None, initial_pil_image, initial_draw_context) # Canvas is None initially
-        self.ui = PaintUI(root, self.drawing_tools)
+    def __init__(self, host='127.0.0.1', port=65432):
 
-        # Now that UI has created the canvas, pass it to drawing_tools
-        self.drawing_tools.canvas = self.ui.canvas
-        self.drawing_tools.set_tool("pen") # Set initial tool
+        self.host = host
+        self.port = port
+        self.socket_cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+    def _comunicar(self):
+        try:
+            while True:
+                mensagem = input("Digite sua mensagem (ou 'sair' para terminar): ")
+                if mensagem.lower() == 'sair':
+                    break
+
+                # Envia a mensagem codificada em bytes
+                self.socket_cliente.sendall(mensagem.encode('utf-8'))
+
+                # Recebe a resposta do servidor
+                data = self.socket_cliente.recv(1024)
+                print(f"Servidor (eco): {data.decode('utf-8')}")
+
+        except ConnectionResetError:
+            print("A conexão foi perdida com o servidor.")
+        finally:
+            print("Desconectando do servidor.")
+
+    def start(self):
+
+        try:
+            self.socket_cliente.connect((self.host, self.port))
+            print(f"Conectado com sucesso ao servidor em {self.host}:{self.port}")
+            self._comunicar()
+        except ConnectionRefusedError:
+            print("[ERRO] Não foi possível conectar ao servidor. Ele está online?")
+        finally:
+            self.socket_cliente.close()
+
+
+# --- Bloco de Execução ---
+if __name__ == "__main__":
+    cliente = Cliente()
+    cliente.start()
