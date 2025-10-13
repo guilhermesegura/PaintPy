@@ -4,12 +4,12 @@ from PIL import Image, ImageDraw, ImageTk, ImageFont
 
 
 class PaintUI:
-    def __init__(self, root, drawing_tools):
+    def __init__(self, root, drawing_tools, peer):
         self.root = root
         self.drawing_tools = drawing_tools
         self.canvas = None
         self.photo_image = None
-
+        self.peer = peer
         self._setup_toolbar()
         self._setup_canvas()
         self._bind_events()
@@ -60,6 +60,9 @@ class PaintUI:
         # Clear button
         self.clear_button = tk.Button(self.toolbar, text="Clear", command=self._clear_canvas)
         self.clear_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.save_button = tk.Button(self.toolbar, text="Save", command=self._save_image)
+        self.save_button.pack(side=tk.LEFT, padx=5, pady=5)
 
     def _setup_canvas(self):
         self.canvas = tk.Canvas(self.root, bg="white", bd=5, relief=tk.SUNKEN)
@@ -128,8 +131,31 @@ class PaintUI:
             self.drawing_tools.set_color(color_code[1])
 
     def _clear_canvas(self):
-        self.canvas.delete("all")
-        new_pil_image = Image.new("RGB", (self.canvas.winfo_width(), self.canvas.winfo_height()), "white")
-        new_draw_context = ImageDraw.Draw(new_pil_image)
-        self.drawing_tools.update_image_context(new_pil_image, new_draw_context)
-        messagebox.showinfo("Clear", "Canvas cleared!")
+        resposta = messagebox.askyesno(title="Limpar", message="Deseja Limpar o Canvas?")
+        if resposta:
+            self.drawing_tools.clear_canvas()
+            self.drawing_tools.send_clear()
+
+    def _save_image(self):
+        file_path = filedialog.asksaveasfilename(defaultextension=".png",
+                                                 filetypes=[("PNG files", "*.png"),
+                                                            ("JPEG files", "*.jpg"),
+                                                            ("All files", "*.*")])
+        if file_path:
+            try:
+                # Get the current drawing from the PIL image managed by drawing_tools
+                img_to_save = self.drawing_tools.pil_image
+                # If canvas size changed, ensure PIL image matches for saving
+
+                if img_to_save.width != self.canvas.winfo_width() or img_to_save.height != self.canvas.winfo_height():
+                    # Create a temporary image of the correct canvas size
+                    temp_img = Image.new("RGB", (self.canvas.winfo_width(), self.canvas.winfo_height()), "white")
+                    temp_draw = ImageDraw.Draw(temp_img)
+                    self._redraw_canvas_to_pil(temp_draw)
+                    img_to_save = temp_img
+
+                img_to_save.save(file_path)
+                messagebox.showinfo("Save Image", "Image saved successfully!")
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not save image: {e}")

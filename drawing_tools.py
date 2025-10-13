@@ -1,5 +1,6 @@
 import tkinter as tk
 from PIL import ImageDraw, Image, ImageFont, ImageTk
+from tkinter import messagebox
 import peer
 
 
@@ -289,3 +290,13 @@ class DrawingTools:
         self.pil_image = new_pil_image
         self.draw_context = new_draw_context
         self._cleanup_temp_tools() # Clear any temporary previews or text entries
+
+    def clear_canvas(self):
+        self.canvas.delete("all")
+        new_pil_image = Image.new("RGB", (self.canvas.winfo_width(), self.canvas.winfo_height()), "white")
+        new_draw_context = ImageDraw.Draw(new_pil_image)
+        self.update_image_context(new_pil_image, new_draw_context)
+
+    def send_clear(self):
+        msg = "clear:" + self.peer.username
+        self.peer.broadcast(msg)

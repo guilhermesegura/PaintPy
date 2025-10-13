@@ -19,7 +19,7 @@ class PaintApp:
 
         self.drawing_tools = DrawingTools(None, initial_pil_image, initial_draw_context,
                                           peer)  # Canvas is None initially
-        self.ui = PaintUI(root, self.drawing_tools)
+        self.ui = PaintUI(root, self.drawing_tools, peer)
 
         # Now that UI has created the canvas, pass it to drawing_tools
         self.drawing_tools.canvas = self.ui.canvas
