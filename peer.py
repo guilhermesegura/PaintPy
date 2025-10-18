@@ -38,6 +38,7 @@ class Peer:
                     conn.close()
                     continue
 
+
                 print(f"[{self.username}] Conexão aceita de {addr}")
                 self.peers.append(conn)
                 thread = threading.Thread(target=self._handle_peer_messages, args=(conn, addr))
@@ -50,29 +51,54 @@ class Peer:
         self.server_socket.close()
 
     def _handle_peer_messages(self, peer_socket, addr):
+        # 3. BUFFER CORRETO: Essencial para o "pen" e "line" funcionarem
+        buffer = ""
         while True:
             try:
                 data = peer_socket.recv(4096)
                 if not data:
                     break  # Conexão fechada pelo outro lado
-                message = data.decode('utf-8')
-                parts = message.split(":")
-                if parts[1].strip() == "msg":
-                    print(f"Mensagem {parts[0] + ":  "+ parts[2]}")
-                elif parts[1].strip() == "clear":
-                    self.drawingTools.clear_canvas()
-                    print(f"[{parts[2]}] Apagou o Canvas")
-                else:
-                    self.drawingTools.apply_remote_action(message)
+
+                # Adiciona os novos dados ao buffer
+                buffer += data.decode('utf-8')
+
+                # Processa TODAS as mensagens completas no buffer
+                while '\n' in buffer:
+                    # Separa a primeira mensagem completa ('\n') do resto do buffer
+                    message, buffer = buffer.split('\n', 1)
+
+                    if not message:  # Ignora mensagens vazias
+                        continue
+
+                    # ---- Início do processamento da mensagem ----
+                    parts = message.split(":")
+
+                    if len(parts) < 2:
+                        print(f"[{self.username}] Recebida mensagem malformada: {message}")
+                        continue
+
+                    part_1_stripped = parts[1].strip()
+
+                    if part_1_stripped == "msg":
+                        chat_text = ":".join(parts[2:]).strip()  # Permite ':' na msg
+                        print(f"Mensagem {parts[0] + ":  " + chat_text}")
+                    elif part_1_stripped == "clear":
+                        self.drawingTools.clear_canvas()
+                        if len(parts) > 2:
+                            print(f"[{parts[2]}] Apagou o Canvas")
+                        else:
+                            print(f"[{parts[0]}] Apagou o Canvas")
+                    else:
+                        # Envia a mensagem completa (e única) para processamento
+                        self.drawingTools.apply_remote_action(message)
+                    # ---- Fim do processamento da mensagem ----
+
             except ConnectionResetError:
                 break  # Conexão forçadamente fechada
             except Exception as e:
                 print(f"[{self.username}] Erro ao receber mensagem de {addr}: {e}")
+                print(f"Buffer no momento do erro (parcial): {buffer[:200]}")
                 break
-
-        print(f"[{self.username}] Conexão com {addr} foi perdida.")
-        self.peers.remove(peer_socket)
-        peer_socket.close()
 
     def connect_to_peer(self, peer_host, peer_port):
         if len(self.peers) >= self.max_peers:
@@ -97,10 +123,10 @@ class Peer:
             return False
 
     def broadcast(self, message):
-        formatted_message = f"{self.username}: {message}"
+        formatted_message = f"{self.username}: {message}\n"
         for peer_socket in self.peers:
             try:
-                peer_socket.sendall(formatted_message.encode('utf-8'))
+                peer_socket.send(formatted_message.encode('utf-8'))
             except Exception as e:
                 print(f"[{self.username}] Falha ao enviar mensagem para um peer: {e}")
 

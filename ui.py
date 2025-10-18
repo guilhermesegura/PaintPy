@@ -61,9 +61,6 @@ class PaintUI:
         self.clear_button = tk.Button(self.toolbar, text="Clear", command=self._clear_canvas)
         self.clear_button.pack(side=tk.LEFT, padx=5, pady=5)
 
-        self.save_button = tk.Button(self.toolbar, text="Save", command=self._save_image)
-        self.save_button.pack(side=tk.LEFT, padx=5, pady=5)
-
     def _setup_canvas(self):
         self.canvas = tk.Canvas(self.root, bg="white", bd=5, relief=tk.SUNKEN)
         self.canvas.pack(fill=tk.BOTH, expand=True)
@@ -79,51 +76,7 @@ class PaintUI:
         self.canvas.bind("<Button-1>", self.drawing_tools.start_action)
         self.canvas.bind("<B1-Motion>", self.drawing_tools.perform_action)
         self.canvas.bind("<ButtonRelease-1>", self.drawing_tools.end_action)
-        self.root.bind("<Configure>", self._on_resize)
-
-    def _on_resize(self, event):
-        new_width = self.canvas.winfo_width()
-        new_height = self.canvas.winfo_height()
-
-        if new_width > 0 and new_height > 0 and \
-           (new_width != self.drawing_tools.pil_image.width or new_height != self.drawing_tools.pil_image.height):
-
-            new_pil_image = Image.new("RGB", (new_width, new_height), "white")
-            new_draw_context = ImageDraw.Draw(new_pil_image)
-
-            self._redraw_canvas_to_pil(new_draw_context)
-
-            self.drawing_tools.update_image_context(new_pil_image, new_draw_context)
-
-
-    def _redraw_canvas_to_pil(self, target_draw_context):
-        for item_id in self.canvas.find_all():
-            if "drawn_item" in self.canvas.gettags(item_id):
-                item_type = self.canvas.type(item_id)
-                coords = self.canvas.coords(item_id)
-                fill_color = self.canvas.itemcget(item_id, "fill")
-                outline_color = self.canvas.itemcget(item_id, "outline")
-                width_str = self.canvas.itemcget(item_id, "width")
-                width = int(width_str) if width_str else 1 # Default to 1 if no width
-
-                if item_type == "line":
-                    target_draw_context.line(coords, fill=fill_color, width=width)
-                elif item_type == "rectangle":
-                    target_draw_context.rectangle(coords, outline=outline_color, width=width)
-                elif item_type == "oval":
-                    target_draw_context.ellipse(coords, outline=outline_color, width=width)
-                elif item_type == "text":
-                    text_content = self.canvas.itemcget(item_id, "text")
-                    font_str = self.canvas.itemcget(item_id, "font") # e.g., "Arial 12"
-                    font_parts = font_str.split(" ")
-                    font_family = font_parts[0]
-                    font_size = int(font_parts[1]) if len(font_parts) > 1 else 10
-                    try:
-                        pil_font = ImageFont.truetype(font_family, font_size)
-                    except IOError:
-                        pil_font = ImageFont.load_default()
-                    target_draw_context.text((coords[0], coords[1]), text_content, font=pil_font, fill=fill_color)
-
+        #self.root.bind("<Configure>", self._on_resize)
 
     def _choose_color(self):
         color_code = colorchooser.askcolor(title="Choose pen/text color")
@@ -134,28 +87,5 @@ class PaintUI:
         resposta = messagebox.askyesno(title="Limpar", message="Deseja Limpar o Canvas?")
         if resposta:
             self.drawing_tools.clear_canvas()
-            self.drawing_tools.send_clear()
-
-    def _save_image(self):
-        file_path = filedialog.asksaveasfilename(defaultextension=".png",
-                                                 filetypes=[("PNG files", "*.png"),
-                                                            ("JPEG files", "*.jpg"),
-                                                            ("All files", "*.*")])
-        if file_path:
-            try:
-                # Get the current drawing from the PIL image managed by drawing_tools
-                img_to_save = self.drawing_tools.pil_image
-                # If canvas size changed, ensure PIL image matches for saving
-
-                if img_to_save.width != self.canvas.winfo_width() or img_to_save.height != self.canvas.winfo_height():
-                    # Create a temporary image of the correct canvas size
-                    temp_img = Image.new("RGB", (self.canvas.winfo_width(), self.canvas.winfo_height()), "white")
-                    temp_draw = ImageDraw.Draw(temp_img)
-                    self._redraw_canvas_to_pil(temp_draw)
-                    img_to_save = temp_img
-
-                img_to_save.save(file_path)
-                messagebox.showinfo("Save Image", "Image saved successfully!")
-
-            except Exception as e:
-                messagebox.showerror("Error", f"Could not save image: {e}")
+            if self.peer:
+                self.drawing_tools.send_clear()
