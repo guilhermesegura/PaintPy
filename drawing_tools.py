@@ -1,6 +1,4 @@
 import tkinter as tk
-from PIL import ImageDraw, Image, ImageFont, ImageTk
-from tkinter import messagebox
 
 
 
@@ -10,12 +8,8 @@ class DrawingTools:
         self.pen_color = "#000000"
         self.pen_size = 2 # Also used for text size
         self.tool = "pen"
-
+        self.id_last_shape = None
         self.start_x, self.start_y = None, None
-
-        # --- For shape previews (same as before) ---
-        self.temp_tk_image = None
-        self.temp_tk_image_id = None
 
         # --- For text tool ---
         self.text_entry_widget = None
@@ -41,15 +35,6 @@ class DrawingTools:
         self.start_x, self.start_y = None, None
 
     def _cleanup_temp_tools(self):
-        # Clean up shape preview
-        if self.temp_tk_image_id:
-            self.canvas.delete(self.temp_tk_image_id)
-            self.temp_tk_image_id = None
-        self.temp_tk_image = None
-        self.temp_pil_image = None
-        self.temp_draw_context = None
-
-        # Clean up text entry widget
         if self.text_entry_widget:
             self.text_entry_widget.destroy()
             self.text_entry_widget = None
@@ -68,7 +53,7 @@ class DrawingTools:
                 self.peer.broadcast(msg)
 
         if self.tool in ["line", "rectangle", "circle"]:
-            self._cleanup_temp_tools() # Ensure no text entry or other shapes are active
+            pass
 
 
         elif self.tool == "text":
@@ -140,8 +125,11 @@ class DrawingTools:
 
     def perform_action(self, event):
         x, y = event.x, event.y
+        string_data = ''
+
         if self.start_x is None or self.start_y is None:
             return
+
         if self.tool in ["pen", "eraser"]:
             string_data = self.draw_line(x, y)
             msg = ":".join(string_data)
@@ -149,7 +137,12 @@ class DrawingTools:
                 self.peer.broadcast(msg)
 
         elif self.tool in ["line", "rectangle", "circle"]:
-            pass
+            if self.id_last_shape:
+                self.canvas.delete(self.id_last_shape)
+            self.draw_shapes(x, y)
+            msg = ":".join(string_data)
+            if self.peer:
+                self.peer.broadcast(msg)
 
     def end_action(self, event):
         x, y = event.x, event.y
@@ -160,26 +153,9 @@ class DrawingTools:
         if self.tool in ["pen", "eraser"]:
             pass # Handled in perform_action
         elif self.tool in ["line", "rectangle", "circle"]:
-            if self.temp_tk_image_id:
-                self.canvas.delete(self.temp_tk_image_id)
-
-            bbox = [min(self.start_x, x), min(self.start_y, y), max(self.start_x, x), max(self.start_y, y)]
-
-            if self.tool == "line":
-                self.canvas.create_line(self.start_x, self.start_y, x, y,
-                                        fill=self.pen_color, width=self.pen_size,
-                                        capstyle=tk.ROUND, smooth=tk.TRUE, tags="drawn_item")
-                string_data = [self.tool, self.pen_color, str(self.pen_size), str(self.start_x), str(self.start_y), str(x), str(y), '']
-            elif self.tool == "rectangle":
-                self.canvas.create_rectangle(bbox[0], bbox[1], bbox[2], bbox[3],
-                                            outline=self.pen_color, width=self.pen_size, tags="drawn_item")
-                string_data = [self.tool, self.pen_color, str(self.pen_size), str(bbox[0]), str(bbox[1]), str(bbox[2]), str(bbox[3]), '']
-            elif self.tool == "circle":
-                self.canvas.create_oval(bbox[0], bbox[1], bbox[2], bbox[3],
-                                        outline=self.pen_color, width=self.pen_size, tags="drawn_item")
-                string_data = [self.tool, self.pen_color, str(self.pen_size), str(bbox[0]), str(bbox[1]), str(bbox[2]), str(bbox[3]), '']
-
+            string_data = self.draw_shapes(x, y)
             msg = ":".join(string_data)
+            self.id_last_shape = None
             if self.peer:
                 self.peer.broadcast(msg)
 
@@ -219,10 +195,6 @@ class DrawingTools:
     def _cancel_text_entry(self, event):
         self._cleanup_temp_tools() # Just remove the entry widget
 
-    def update_image_context(self, new_pil_image, new_draw_context):
-        """Updates the internal PIL image and draw context when the canvas is cleared or image is opened."""
-        self._cleanup_temp_tools() # Clear any temporary previews or text entries
-
     def clear_canvas(self):
         self.canvas.delete("all")
 
@@ -248,4 +220,28 @@ class DrawingTools:
             string_data = [self.tool, self.pen_color, str(self.pen_size), str(self.start_x), str(self.start_y), str(x),
                            str(y), '']
             self.start_x, self.start_y = x, y
+        return string_data
+
+    def draw_shapes(self, x, y):
+        string_data = ""
+        bbox = [min(self.start_x, x), min(self.start_y, y), max(self.start_x, x), max(self.start_y, y)]
+
+        if self.tool == "line":
+            self.id_last_shape = self.canvas.create_line(self.start_x, self.start_y, x, y,
+                                                         fill=self.pen_color, width=self.pen_size,
+                                                         capstyle=tk.ROUND, smooth=tk.TRUE, tags="drawn_item")
+            string_data = [self.tool, self.pen_color, str(self.pen_size), str(self.start_x), str(self.start_y),
+                           str(x), str(y), '']
+        elif self.tool == "rectangle":
+            self.id_last_shape = self.canvas.create_rectangle(bbox[0], bbox[1], bbox[2], bbox[3],
+                                                              outline=self.pen_color, width=self.pen_size,
+                                                              tags="drawn_item")
+            string_data = [self.tool, self.pen_color, str(self.pen_size), str(bbox[0]), str(bbox[1]),
+                           str(bbox[2]), str(bbox[3]), '']
+        elif self.tool == "circle":
+            self.id_last_shape = self.canvas.create_oval(bbox[0], bbox[1], bbox[2], bbox[3],
+                                                         outline=self.pen_color, width=self.pen_size, tags="drawn_item")
+            string_data = [self.tool, self.pen_color, str(self.pen_size), str(bbox[0]), str(bbox[1]),
+                           str(bbox[2]), str(bbox[3]), '']
+
         return string_data
