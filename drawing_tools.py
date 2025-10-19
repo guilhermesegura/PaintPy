@@ -153,6 +153,7 @@ class DrawingTools:
         if self.tool in ["pen", "eraser"]:
             pass # Handled in perform_action
         elif self.tool in ["line", "rectangle", "circle"]:
+            self.canvas.delete(self.id_last_shape)
             string_data = self.draw_shapes(x, y)
             msg = ":".join(string_data)
             self.id_last_shape = None
