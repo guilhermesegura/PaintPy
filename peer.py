@@ -99,7 +99,7 @@ class Peer:
                 # mensagem em binário
                 data = peer_socket.recv(4096)
                 # se a conexão for fechada pelo outro peer
-                if data == b'':
+                if not data:
                     peer_socket.close()
                     self.peers.remove(peer_socket)
                     break
@@ -145,13 +145,12 @@ class Peer:
                         # envia uma única e completa mensagem para a aplicar o desenho da rede
                         self.drawingTools.apply_remote_action(messagem)
 
-            except ConnectionResetError:
-                break
             except Exception as e:
                 print(f"[{self.username}] Erro ao receber mensagem de {endereco}: {e}")
                 print(f"Buffer no momento do erro (parcial): {buffer[:200]}")
                 peer_socket.close()
                 self.peers.remove(peer_socket)
+                print("Conexão fechada")
                 break
 
     def conecta(self, peer_ip, peer_porta):
