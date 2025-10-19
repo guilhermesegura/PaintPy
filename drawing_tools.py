@@ -1,7 +1,5 @@
 import tkinter as tk
 
-
-
 class DrawingTools:
     def __init__(self, canvas, peer):
         self.canvas = canvas
@@ -140,9 +138,6 @@ class DrawingTools:
             if self.id_last_shape:
                 self.canvas.delete(self.id_last_shape)
             self.draw_shapes(x, y)
-            msg = ":".join(string_data)
-            if self.peer:
-                self.peer.broadcast(msg)
 
     def end_action(self, event):
         x, y = event.x, event.y
