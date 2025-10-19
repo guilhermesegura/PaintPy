@@ -1,5 +1,7 @@
 import socket
 import threading
+from logging import exception
+
 import main as m
 
 
@@ -100,9 +102,7 @@ class Peer:
                 data = peer_socket.recv(4096)
                 # se a conexão for fechada pelo outro peer
                 if not data:
-                    peer_socket.close()
-                    self.peers.remove(peer_socket)
-                    break
+                    raise exception("Peer desconectado")
 
                 # adiciona os novos dados ao buffer
                 buffer += data.decode('utf-8')
@@ -140,7 +140,7 @@ class Peer:
                         print(f"[{parts[0]}] Fechou a conexão")
                         peer_socket.close()
                         self.peers.remove(peer_socket)
-                        break
+                        return
 
                     else:
                         # envia uma única e completa mensagem para a aplicar o desenho da rede
@@ -148,7 +148,6 @@ class Peer:
 
             except Exception as e:
                 print(f"[{self.username}] Erro ao receber mensagem de {endereco}: {e}")
-                print(f"Buffer no momento do erro (parcial): {buffer[:200]}")
                 peer_socket.close()
                 self.peers.remove(peer_socket)
                 print("Conexão fechada")
@@ -192,11 +191,10 @@ class Peer:
         Args:
             messagem (str): mensagem a ser enviada.
         """
-        bytes_sent = 0
         mensagem_formatada = f"{self.username}:{messagem}\n"
         for peer_socket in self.peers:
             try:
-                bytes_sent = peer_socket.send(mensagem_formatada.encode('utf-8'))
+                peer_socket.send(mensagem_formatada.encode('utf-8'))
             except Exception as e:
                 print(f"[{self.username}] Falha ao enviar mensagem para um peer: {e}")
 
