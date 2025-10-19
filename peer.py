@@ -61,8 +61,8 @@ class Peer:
                 # aceita a conexão, manda mensagem que está ocupado e fecha a conexão
                 if len(self.peers) >= self.max_peers:
                     print(f"[{self.username}] Conexão recusada de {endereco}: já está conectado a outro peer")
-                    msg = self.username + ":msg:Ocupado. Já conectado a outro peer"
-                    conn.sendall(msg.encode('utf-8'))
+                    msg = self.username + ":fechar: Ocupado. Já conectado a outro peer"
+                    conn.send(msg.encode('utf-8'))
                     conn.close()
                     continue
 
@@ -138,6 +138,7 @@ class Peer:
 
                     elif part_1_stripped == "fechar":
                         print(f"[{parts[0]}] Fechou a conexão")
+                        peer_socket.close()
                         self.peers.remove(peer_socket)
                         break
 
@@ -191,10 +192,11 @@ class Peer:
         Args:
             messagem (str): mensagem a ser enviada.
         """
+        bytes_sent = 0
         mensagem_formatada = f"{self.username}:{messagem}\n"
         for peer_socket in self.peers:
             try:
-                peer_socket.send(mensagem_formatada.encode('utf-8'))
+                bytes_sent = peer_socket.send(mensagem_formatada.encode('utf-8'))
             except Exception as e:
                 print(f"[{self.username}] Falha ao enviar mensagem para um peer: {e}")
 
