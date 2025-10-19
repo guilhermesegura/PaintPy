@@ -1,47 +1,76 @@
 import socket
 import threading
-
-from pyexpat.errors import messages
-
 import main as m
 
-class Peer:
 
-    def __init__(self, host, port, username):
-        self.host = host
-        self.port = port
+class Peer:
+    """
+    classe responsável pela comunicação entre os peers.
+
+    cada instância representa um usuário (peer) que pode:
+    - escutar por conexões,
+    - conectar-se a outro peer,
+    - enviar e receber mensagens,
+    - e sincronizar ações de desenho através da rede.
+    """
+
+    # construtor
+    def __init__(self, ip, porta, username):
+        """
+        construtor da classe Peer.
+
+        Args:
+            ip (str): endereço IP do peer local.
+            porta (int): porta TCP usada para escutar conexões.
+            username (str): nome de usuário associado a este peer.
+        """
+        # parâmetros do peer
+        self.ip = ip
+        self.porta = porta
         self.username = username
 
-        # Cria o socket "servidor" do peer para escutar por conexões
+        # cria o socket servidor do peer com ipv4 e tcp
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # configura o server socket para sempre utilizar o mesmo ip e porta
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind((self.host, self.port))
+        self.server_socket.bind((self.ip, self.porta))
 
+        # número máximo de peers conectados (é apenas permitido duas pessoas se conectarem)
         self.max_peers = 1
 
-        # Lista para armazenar os sockets dos peers aos quais estamos conectados
+        # lista para armazenar o peer que estamos conectados
         self.peers = []
 
+        # drawingTools inicial
         self.drawingTools = None
 
-    def _listen_for_connections(self):
+    def escuta(self):
+        """
+        inicia o modo de escuta do servidor, aguardando novas conexões.
+
+        se o número máximo de conexões for atingido, o peer recusa novas conexões
+        enviando uma mensagem de "ocupado". Cada conexão aceita é tratada em uma thread.
+        """
         self.server_socket.listen()
-        print(f"[{self.username}] Escutando por conexões em {self.host}:{self.port}")
+        print(f"[{self.username}] Escutando por conexões em {self.ip}:{self.porta}")
         while True:
             try:
-                #Aceita uma nova conexão
-                conn, addr = self.server_socket.accept()
+                # aceita uma nova conexão
+                conn, endereco = self.server_socket.accept()
+
+                # aceita a conexão, manda mensagem que está ocupado e fecha a conexão
                 if len(self.peers) >= self.max_peers:
-                    print(f"[{self.username}] Conexão recusada de {addr}: já está conectado a outro peer")
+                    print(f"[{self.username}] Conexão recusada de {endereco}: já está conectado a outro peer")
                     msg = self.username + ":msg:Ocupado. Já conectado a outro peer"
                     conn.sendall(msg.encode('utf-8'))
                     conn.close()
                     continue
 
-
-                print(f"[{self.username}] Conexão aceita de {addr}")
+                print(f"[{self.username}] Conexão aceita de {endereco}")
                 self.peers.append(conn)
-                thread = threading.Thread(target=self._handle_peer_messages, args=(conn, addr))
+
+                # cria uma thread para a função de receber mensagem
+                thread = threading.Thread(target=self.recebe_mensagem, args=(conn, endereco))
                 thread.daemon = True  # Permite que o programa principal saia mesmo com threads ativas
                 thread.start()
 
@@ -50,88 +79,133 @@ class Peer:
                 break
         self.server_socket.close()
 
-    def _handle_peer_messages(self, peer_socket, addr):
-        # 3. BUFFER CORRETO: Essencial para o "pen" e "line" funcionarem
+    def recebe_mensagem(self, peer_socket, endereco):
+        """
+        recebe mensagens de um peer conectado e as processa conforme o tipo.
+
+        Args:
+            peer_socket (socket.socket): socket do peer.
+            endereco (tuple): endereço (IP, porta) do peer conectado.
+
+        tipos de mensagens esperadas:
+        - "<usuario>:msg:<texto>" → exibe mensagem de chat.
+        - "<usuario>:clear" → limpa o canvas.
+        - outros → aplicam ações de desenho remoto.
+        """
+        # buffer para receber a mensagem decodificada e guardar resto de mensagem que podem vir no próximo pacote
         buffer = ""
         while True:
             try:
+                # mensagem em binário
                 data = peer_socket.recv(4096)
-                if not data:
-                    break  # Conexão fechada pelo outro lado
+                # se a conexão for fechada pelo outro peer
+                if data == b'':
+                    peer_socket.close()
+                    self.peers.remove(peer_socket)
+                    break
 
-                # Adiciona os novos dados ao buffer
+                # adiciona os novos dados ao buffer
                 buffer += data.decode('utf-8')
 
-                # Processa TODAS as mensagens completas no buffer
+                # processa todas as mensagens completas no buffer
                 while '\n' in buffer:
-                    # Separa a primeira mensagem completa ('\n') do resto do buffer
-                    message, buffer = buffer.split('\n', 1)
+                    # separa a primeira mensagem completa ('\n') do resto do buffer
+                    messagem, buffer = buffer.split('\n', 1)
 
-                    if not message:  # Ignora mensagens vazias
+                    # ignora mensagens vazias
+                    if not messagem:
                         continue
 
-                    # ---- Início do processamento da mensagem ----
-                    parts = message.split(":")
+                    # processamento das mensagens
+                    parts = messagem.split(":")
 
+                    # se a mensagem tiver mal formada
                     if len(parts) < 2:
-                        print(f"[{self.username}] Recebida mensagem malformada: {message}")
+                        print(f"[{self.username}] Recebida mensagem corrompida: {messagem}")
                         continue
 
+                    # remove os espaços em branco do início e do final
                     part_1_stripped = parts[1].strip()
 
                     if part_1_stripped == "msg":
-                        chat_text = ":".join(parts[2:]).strip()  # Permite ':' na msg
-                        print(f"Mensagem {parts[0] + ":  " + chat_text}")
+                        # permite ':' na mensagem
+                        chat_text = ":".join(parts[2:]).strip()
+                        print(f"Mensagem {parts[0] + ':  ' + chat_text}")
+
                     elif part_1_stripped == "clear":
                         self.drawingTools.clear_canvas()
-                        if len(parts) > 2:
-                            print(f"[{parts[2]}] Apagou o Canvas")
-                        else:
-                            print(f"[{parts[0]}] Apagou o Canvas")
+                        print(f"[{parts[0]}] Apagou o Canvas")
+
+                    elif part_1_stripped == "fechar":
+                        print(f"[{parts[0]}] Fechou a conexão")
+                        self.peers.remove(peer_socket)
+                        break
+
                     else:
-                        # Envia a mensagem completa (e única) para processamento
-                        self.drawingTools.apply_remote_action(message)
-                    # ---- Fim do processamento da mensagem ----
+                        # envia uma única e completa mensagem para a aplicar o desenho da rede
+                        self.drawingTools.apply_remote_action(messagem)
 
             except ConnectionResetError:
-                break  # Conexão forçadamente fechada
+                break
             except Exception as e:
-                print(f"[{self.username}] Erro ao receber mensagem de {addr}: {e}")
+                print(f"[{self.username}] Erro ao receber mensagem de {endereco}: {e}")
                 print(f"Buffer no momento do erro (parcial): {buffer[:200]}")
                 break
 
-    def connect_to_peer(self, peer_host, peer_port):
+    def conecta(self, peer_ip, peer_porta):
+        """
+        conecta este peer a outro peer remoto.
+
+        Args:
+            peer_ip (str): endereço IP do peer.
+            peer_porta (int): porta TCP do peer.
+
+        Returns:
+            bool: true se a conexão foi bem-sucedida, false em caso de erro.
+        """
         if len(self.peers) >= self.max_peers:
             print(f"[{self.username}] Já esta conectado.")
             return False
 
         try:
-            # Cria um novo socket para se conectar a outro peer (age como cliente)
+            # cria um novo socket para se conectar a outro peer (age como cliente)
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect((peer_host, peer_port))
+            client_socket.connect((peer_ip, peer_porta))
             # Adiciona o peer à nossa lista
             self.peers.append(client_socket)
-            print(f"[{self.username}] Conectado com sucesso a {peer_host}:{peer_port}")
+            print(f"[{self.username}] Conectado com sucesso a {peer_ip}:{peer_porta}")
 
-            # Inicia uma thread para receber mensagens deste peer ao qual nos conectamos
-            thread = threading.Thread(target=self._handle_peer_messages, args=(client_socket, (peer_host, peer_port)))
+            # inicia uma thread para receber mensagens deste peer ao qual nos conectamos
+            thread = threading.Thread(target=self.recebe_mensagem, args=(client_socket, (peer_ip, peer_porta)))
             thread.daemon = True
             thread.start()
             return True
         except Exception as e:
-            print(f"[{self.username}] Não foi possível conectar a {peer_host}:{peer_port}. Erro: {e}")
+            print(f"[{self.username}] Não foi possível conectar a {peer_ip}:{peer_porta}. Erro: {e}")
             return False
 
-    def broadcast(self, message):
-        formatted_message = f"{self.username}: {message}\n"
+    def envia_mensagem(self, messagem):
+        """
+        envia uma mensagem de texto para o peer conectado.
+        Args:
+            messagem (str): mensagem a ser enviada.
+        """
+        mensagem_formatada = f"{self.username}: {messagem}\n"
         for peer_socket in self.peers:
             try:
-                peer_socket.send(formatted_message.encode('utf-8'))
+                peer_socket.send(mensagem_formatada.encode('utf-8'))
             except Exception as e:
                 print(f"[{self.username}] Falha ao enviar mensagem para um peer: {e}")
 
     def start(self):
-        listen_thread = threading.Thread(target=self._listen_for_connections)
+        """
+        inicia o peer local.
+
+        permite:
+        - conectar a outro peer via comando `connect <ip> <porta>`.
+        - enviar mensagens de chat digitando qualquer outro texto.
+        """
+        listen_thread = threading.Thread(target=self.escuta)
         listen_thread.daemon = True
         listen_thread.start()
 
@@ -142,28 +216,36 @@ class Peer:
             user_input = input("")
             if user_input.startswith("connect "):
                 try:
-                    _, host, port = user_input.split()
-                    self.connect_to_peer(host, int(port))
+                    _, ip, porta = user_input.split()
+                    self.conecta(ip, int(porta))
                 except ValueError:
                     print("Comando inválido. Use: connect <ip> <porta>")
             else:
-                self.broadcast("msg:" + user_input)
+                self.envia_mensagem("msg:" + user_input)
+
 
 if __name__ == "__main__":
-    # Descobre o IP local automaticamente
+    """
+    Inicio principal do programa.
+
+    descobre o IP local automaticamente, solicita porta e nome do usuário,
+    inicia o peer e executa o aplicativo de desenho principal.
+    """
+    # descobre o IP local automaticamente
     hostname = socket.gethostname()
-    local_ip = socket.gethostbyname(hostname)
-    # Espera o usuário digitar uma porta correta
+    ip_local = socket.gethostbyname(hostname)
+
+    # espera o usuário digitar uma porta correta
     while True:
-        port = input("Digite a porta em que você quer escutar (ex: 8001): ")
-        condicao = port.isnumeric()
+        porta = input("Digite a porta em que você quer escutar (ex: 8001): ")
+        condicao = porta.isnumeric()
         if condicao:
-            port = int(port)
+            porta = int(porta)
             break
 
     username = input("Digite seu nome de usuário: ")
 
-    peer = Peer(local_ip, port, username)
+    peer = Peer(ip_local, porta, username)
 
     thread = threading.Thread(target=peer.start)
     thread.daemon = True

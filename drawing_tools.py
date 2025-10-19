@@ -1,7 +1,19 @@
 import tkinter as tk
 
 class DrawingTools:
+    """
+    classe responsável pelas ferramentas de desenho.
+    Controla as ações do usuário no canvas, como desenhar, apagar e inserir texto,
+    além de sincronizar essas ações com outro peer conectados.
+    """
     def __init__(self, canvas, peer):
+        """
+        inicializa as variáveis e configurações padrão das ferramentas de desenho.
+
+        Args:
+            canvas (tk.Canvas): área de desenho principal.
+            peer (Peer): objeto responsável pela comunicação em rede.
+        """
         self.canvas = canvas
         self.pen_color = "#000000"
         self.pen_size = 2 # Also used for text size
@@ -18,14 +30,32 @@ class DrawingTools:
         self.peer = peer
 
     def set_color(self, color):
+        """
+        define a cor do pincel e do texto.
+
+        Args:
+            color (str): nova cor em formato hexadecimal (ex: "#FF0000").
+        """
         self.pen_color = color
-        self.text_color = color # Text color also changes with pen color
+        self.text_color = color
 
     def set_size(self, size):
-        self.pen_size = int(size) # Pen size also affects text size
+        """
+        define o tamanho do pincel e do texto.
+
+        Args:
+            size (int | str): novo tamanho.
+        """
+        self.pen_size = int(size)
 
     def set_tool(self, tool_name):
-        # Clean up any active temporary tools before switching
+        """
+        define a ferramenta ativa (pincel, borracha, linha, retângulo, círculo ou texto).
+        Usado ao inicializar o programa
+
+        Args:
+            tool_name (str): nome da ferramenta.
+        """
         self._cleanup_temp_tools()
 
         self.tool = tool_name
@@ -33,6 +63,9 @@ class DrawingTools:
         self.start_x, self.start_y = None, None
 
     def _cleanup_temp_tools(self):
+        """
+        Remove o text widget inicial.
+        """
         if self.text_entry_widget:
             self.text_entry_widget.destroy()
             self.text_entry_widget = None
@@ -42,21 +75,28 @@ class DrawingTools:
 
 
     def start_action(self, event):
+        """
+        inicia uma ação de desenho de acordo com a ferramenta selecionada.
+        Função executada ao pressionar o botão esquerdo do mouse
+
+        Args:
+            event (tk.Event): evento de clique no canvas.
+        """
         self.start_x, self.start_y = event.x, event.y
 
         if self.tool in ["pen", "eraser"]:
             string_data = self.draw_line(self.start_x, self.start_y)
             msg = ":".join(string_data)
             if self.peer:
-                self.peer.broadcast(msg)
+                self.peer.envia_mensagem(msg)
 
         if self.tool in ["line", "rectangle", "circle"]:
             pass
 
 
         elif self.tool == "text":
-            self._cleanup_temp_tools() # Ensure no shapes are active
-            # Create a Tkinter Entry widget at the clicked position
+            self._cleanup_temp_tools()
+
             self.text_entry_widget = tk.Entry(self.canvas, bg="lightgrey", fg=self.text_color,
                                               font=(self.text_font, self.pen_size))
             self.text_entry_canvas_id = self.canvas.create_window(event.x, event.y,
@@ -70,6 +110,42 @@ class DrawingTools:
 
 
     def apply_remote_action(self, message):
+        """
+        aplica no canvas uma ação recebida de outro peer.
+
+        essa função interpreta a mensagem recebida de outro usuário e reproduz
+        a ação correspondente no canvas local. Suporta todas as ferramentas
+        disponíveis: linha, retângulo, círculo, pincel, borracha e texto.
+
+        a mensagem deve estar no formato separado por ':':
+
+            <username>:<tool>:<color>:<size>:<x1>:<y1>:<x2>:<y2>:<extra_data>
+
+        onde:
+            - username: nome do usuário que enviou a ação
+            - tool: ferramenta usada ('line', 'rectangle', 'circle', 'pen', 'eraser', 'text')
+            - color: cor do desenho/texto
+            - size: tamanho do pincel ou fonte
+            - x1, y1: coordenadas iniciais
+            - x2, y2: coordenadas finais (não usado para texto)
+            - extra_data: texto digitado (apenas para ferramenta 'text')
+
+        o método realiza os seguintes passos:
+            1. Divide a mensagem em partes usando ':'.
+            2. Converte os valores necessários para inteiro (coordenadas e tamanho).
+            3. Verifica qual ferramenta foi usada.
+            4. Desenha a forma correspondente no canvas:
+                - line: linha reta
+                - rectangle: retângulo
+                - circle: círculo (oval)
+                - pen: pincel
+                - eraser: borracha (linha branca)
+                - text: insere texto no canvas
+            5. Em caso de erro, exibe mensagem no console sem travar o programa.
+
+        Args:
+            message (str): mensagem recebida contendo os dados da ação.
+        """
         try:
             parts = message.split(':')
             tool = parts[1].strip()
@@ -123,6 +199,13 @@ class DrawingTools:
 
     def perform_action(self, event):
         x, y = event.x, event.y
+        """
+        executa a ação contínua de desenho.
+        Função executada ao movimentar o mouse enquanto o botão é pressionado.
+
+        Args:
+            event (tk.Event): evento de movimento do mouse.
+        """
         string_data = ''
 
         if self.start_x is None or self.start_y is None:
@@ -132,7 +215,7 @@ class DrawingTools:
             string_data = self.draw_line(x, y)
             msg = ":".join(string_data)
             if self.peer:
-                self.peer.broadcast(msg)
+                self.peer.envia_mensagem(msg)
 
         elif self.tool in ["line", "rectangle", "circle"]:
             if self.id_last_shape:
@@ -140,6 +223,13 @@ class DrawingTools:
             self.draw_shapes(x, y)
 
     def end_action(self, event):
+        """
+        finaliza a ação de desenho.
+        Função executada ao liberar o botão esquerdo do mouse
+
+        Args:
+            event (tk.Event): evento de soltar o botão.
+        """
         x, y = event.x, event.y
         string_data = ""
         if self.start_x is None or self.start_y is None: # No drawing started
@@ -153,7 +243,7 @@ class DrawingTools:
             msg = ":".join(string_data)
             self.id_last_shape = None
             if self.peer:
-                self.peer.broadcast(msg)
+                self.peer.envia_mensagem(msg)
 
         elif self.tool == "text":
             pass
@@ -162,20 +252,26 @@ class DrawingTools:
         self.start_x, self.start_y = None, None
 
     def _finalize_text(self, event):
+        """
+        finaliza a inserção de texto no canvas e envia para o peer.
+
+        Args:
+            event (tk.Event): evento pressionar Enter.
+        """
         if not self.text_entry_widget:
             return
         msg = ""
         x, y = "", ""
         text_content = self.text_entry_widget.get()
         if text_content:
-            # Get the position of the entry widget on the canvas
+
             bbox = self.canvas.bbox(self.text_entry_canvas_id)
             if bbox:
-                x, y = bbox[0], bbox[1] # Top-left corner of the text entry
+                x, y = bbox[0], bbox[1]
 
                 font_size = max(8, self.pen_size)
 
-                # Draw text on the Tkinter canvas (approximation)
+
                 self.canvas.create_text(x, y, text=text_content, anchor=tk.NW,
                                         font=(self.text_font, font_size), fill=self.text_color,
                                         tags="drawn_item")
@@ -183,23 +279,41 @@ class DrawingTools:
                 msg = ":".join(string_data)
 
                 if self.peer:
-                    self.peer.broadcast(msg)
+                    self.peer.envia_mensagem(msg)
 
-            self._cleanup_temp_tools() # Remove the entry widget
+            self._cleanup_temp_tools()
 
 
     def _cancel_text_entry(self, event):
-        self._cleanup_temp_tools() # Just remove the entry widget
+        """
+        cancela a inserção de texto sem salvar.
+        Função executada ao apertar esc enquanto ainda o texto não foi salvo,
+        ou quando ainda existe o widget de texto e você tenta criar outro
+        """
+        self._cleanup_temp_tools()
 
     def clear_canvas(self):
+        """
+        limpa canvas.
+        """
         self.canvas.delete("all")
 
     def send_clear(self):
-        msg = "clear:" + self.peer.username
+        """
+        envia comando de limpeza do canvas para o peer conectado.
+        """
+        msg = "clear"
         if self.peer:
-            self.peer.broadcast(msg)
+            self.peer.envia_mensagem(msg)
 
     def draw_line(self, x, y):
+        """
+        desenha uma linha contínua (pincel ou borracha).
+
+        Args:
+            x (int): posição X atual do cursor.
+            y (int): posição Y atual do cursor.
+        """
         string_data = ""
         if self.tool == "pen":
             self.canvas.create_line(self.start_x, self.start_y, x, y,
@@ -219,6 +333,13 @@ class DrawingTools:
         return string_data
 
     def draw_shapes(self, x, y):
+        """
+        desenha figuras geométricas (linha, retângulo ou círculo).
+
+        Args:
+            x (int): posição X final.
+            y (int): posição Y final.
+        """
         string_data = ""
         bbox = [min(self.start_x, x), min(self.start_y, y), max(self.start_x, x), max(self.start_y, y)]
 
