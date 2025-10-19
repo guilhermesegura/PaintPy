@@ -61,6 +61,12 @@ class DrawingTools:
     def start_action(self, event):
         self.start_x, self.start_y = event.x, event.y
 
+        if self.tool in ["pen", "eraser"]:
+            string_data = self.draw_line(self.start_x, self.start_y)
+            msg = ":".join(string_data)
+            if self.peer:
+                self.peer.broadcast(msg)
+
         if self.tool in ["line", "rectangle", "circle"]:
             self._cleanup_temp_tools() # Ensure no text entry or other shapes are active
 
@@ -137,20 +143,7 @@ class DrawingTools:
         if self.start_x is None or self.start_y is None:
             return
         if self.tool in ["pen", "eraser"]:
-            string_data = ""
-            if self.tool == "pen":
-                self.canvas.create_line(self.start_x, self.start_y, x, y,
-                                        fill=self.pen_color, width=self.pen_size,
-                                        capstyle=tk.ROUND, smooth=tk.TRUE, tags="drawn_item")
-
-                string_data = [self.tool, self.pen_color, str(self.pen_size), str(self.start_x), str(self.start_y), str(x), str(y), '']
-                self.start_x, self.start_y = x, y
-            elif self.tool == "eraser":
-                self.canvas.create_line(self.start_x, self.start_y, x, y,
-                                        fill="white", width=self.pen_size * 2,
-                                        capstyle=tk.ROUND, smooth=tk.TRUE, tags="drawn_item")
-                string_data = [self.tool, self.pen_color, str(self.pen_size), str(self.start_x), str(self.start_y), str(x), str(y), '']
-                self.start_x, self.start_y = x, y
+            string_data = self.draw_line(x, y)
             msg = ":".join(string_data)
             if self.peer:
                 self.peer.broadcast(msg)
@@ -237,3 +230,22 @@ class DrawingTools:
         msg = "clear:" + self.peer.username
         if self.peer:
             self.peer.broadcast(msg)
+
+    def draw_line(self, x, y):
+        string_data = ""
+        if self.tool == "pen":
+            self.canvas.create_line(self.start_x, self.start_y, x, y,
+                                    fill=self.pen_color, width=self.pen_size,
+                                    capstyle=tk.ROUND, smooth=tk.TRUE, tags="drawn_item")
+
+            string_data = [self.tool, self.pen_color, str(self.pen_size), str(self.start_x), str(self.start_y), str(x),
+                           str(y), '']
+            self.start_x, self.start_y = x, y
+        elif self.tool == "eraser":
+            self.canvas.create_line(self.start_x, self.start_y, x, y,
+                                    fill="white", width=self.pen_size * 2,
+                                    capstyle=tk.ROUND, smooth=tk.TRUE, tags="drawn_item")
+            string_data = [self.tool, self.pen_color, str(self.pen_size), str(self.start_x), str(self.start_y), str(x),
+                           str(y), '']
+            self.start_x, self.start_y = x, y
+        return string_data
