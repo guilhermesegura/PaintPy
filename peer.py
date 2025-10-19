@@ -150,6 +150,8 @@ class Peer:
             except Exception as e:
                 print(f"[{self.username}] Erro ao receber mensagem de {endereco}: {e}")
                 print(f"Buffer no momento do erro (parcial): {buffer[:200]}")
+                peer_socket.close()
+                self.peers.remove(peer_socket)
                 break
 
     def conecta(self, peer_ip, peer_porta):
@@ -190,7 +192,7 @@ class Peer:
         Args:
             messagem (str): mensagem a ser enviada.
         """
-        mensagem_formatada = f"{self.username}: {messagem}\n"
+        mensagem_formatada = f"{self.username}:{messagem}\n"
         for peer_socket in self.peers:
             try:
                 peer_socket.send(mensagem_formatada.encode('utf-8'))
