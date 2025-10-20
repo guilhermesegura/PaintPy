@@ -2,6 +2,11 @@ import tkinter as tk
 from ui import PaintUI
 from drawing_tools import DrawingTools
 
+"""
+Essa classe foi criada com auxílio de IA
+conforme descrito na sessão 7 da documentação
+"""
+
 # variável global usada para manter referência da instância principal do aplicativo
 app_instance = None
 

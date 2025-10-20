@@ -1,5 +1,11 @@
 import tkinter as tk
 
+"""
+Essa classe foi criada com auxilio de IA 
+e das documentações do TKinter 
+conforme está na sessão 7 da documentação
+"""
+
 class DrawingTools:
     """
     classe responsável pelas ferramentas de desenho.

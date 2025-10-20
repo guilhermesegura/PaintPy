@@ -1,6 +1,11 @@
 import tkinter as tk
 from tkinter import colorchooser,  messagebox
 
+"""
+Essa classe foi criada com auxílio de IA 
+conforme descrito na sessão 7 da documentação
+"""
+
 
 class PaintUI:
     def __init__(self, root, drawing_tools, peer):

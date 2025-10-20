@@ -4,6 +4,13 @@ from logging import exception
 
 import main as m
 
+"""
+Essa classe foi criada com auxilio de IA, onde 
+solicitamos um exemplo de aplicação P2P e nós baseamos no código da IA
+no nosso desenvolvimento.
+e das documentações do python sobre sockets
+conforme está na seção 7 da documentação
+"""
 
 class Peer:
     """
