@@ -99,10 +99,10 @@ class Peer:
         while True:
             try:
                 # mensagem em binário
-                data = peer_socket.recv(4096)
+                data = peer_socket.recv(2046)
                 # se a conexão for fechada pelo outro peer
                 if not data:
-                    raise exception("Peer desconectado")
+                    raise Exception("Peer desconectado")
 
                 # adiciona os novos dados ao buffer
                 buffer += data.decode('utf-8')
@@ -147,7 +147,7 @@ class Peer:
                         self.drawingTools.apply_remote_action(messagem)
 
             except Exception as e:
-                print(f"[{self.username}] Erro ao receber mensagem de {endereco}: {e}")
+                print(f"[{self.username}] Erro ao receber mensagem de {endereco}: {e.args[0]}")
                 peer_socket.close()
                 self.peers.remove(peer_socket)
                 print("Conexão fechada")
