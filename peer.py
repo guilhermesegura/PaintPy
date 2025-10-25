@@ -137,7 +137,7 @@ class Peer:
                     if part_1_stripped == "msg":
                         # permite ':' na mensagem
                         chat_text = ":".join(parts[2:]).strip()
-                        print(f"Mensagem {parts[0] + ':  ' + chat_text}")
+                        print(f"Mensagem {parts[0] + ': ' + chat_text}")
 
                     elif part_1_stripped == "clear":
                         self.drawingTools.clear_canvas()

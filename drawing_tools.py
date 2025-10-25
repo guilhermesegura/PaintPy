@@ -62,13 +62,13 @@ class DrawingTools:
         Args:
             tool_name (str): nome da ferramenta.
         """
-        self._cleanup_temp_tools()
+        self._cancel_text_entry()
 
         self.tool = tool_name
         self.canvas.config(cursor="crosshair" if tool_name in ["pen", "eraser", "line", "rectangle", "circle", "text"] else "arrow")
         self.start_x, self.start_y = None, None
 
-    def _cleanup_temp_tools(self):
+    def _cancel_text_entry(self):
         """
         Remove o text widget inicial.
         """
@@ -101,7 +101,7 @@ class DrawingTools:
 
 
         elif self.tool == "text":
-            self._cleanup_temp_tools()
+            self._cancel_text_entry()
 
             self.text_entry_widget = tk.Entry(self.canvas, bg="lightgrey", fg=self.text_color,
                                               font=(self.text_font, self.pen_size))
@@ -112,7 +112,7 @@ class DrawingTools:
             # Bind Return key to finalize text
             self.text_entry_widget.bind("<Return>", self._finalize_text)
             # Bind Escape key to cancel text entry
-            self.text_entry_widget.bind("<Escape>", self._cancel_text_entry)
+            self.text_entry_widget.bind("<Escape>", self._cancel_text_entry())
 
 
     def apply_remote_action(self, message):
@@ -285,16 +285,7 @@ class DrawingTools:
                 if self.peer:
                     self.peer.envia_mensagem(msg)
 
-            self._cleanup_temp_tools()
-
-
-    def _cancel_text_entry(self, event):
-        """
-        cancela a inserção de texto sem salvar.
-        Função executada ao apertar esc enquanto ainda o texto não foi salvo,
-        ou quando ainda existe o widget de texto e você tenta criar outro
-        """
-        self._cleanup_temp_tools()
+            self._cancel_text_entry()
 
     def clear_canvas(self):
         """
