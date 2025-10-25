@@ -156,16 +156,14 @@ class DrawingTools:
             parts = message.split(':')
             tool = parts[1].strip()
             color = parts[2]
-            size = int(parts[3])
             x1 = int(parts[4])
             y1 = int(parts[5])
-            x2 = parts[6]
-            y2 = parts[7]
-            extra_data = parts[8]
+            size = int(parts[3])
             if tool != "text":
-                size = int(size)
-                x2 = int(x2)
-                y2 = int(y2)
+                x2 = int(parts[6])
+                y2 = int(parts[7])
+            else:
+                extra_data = parts[6]
 
             if tool == "line":
 
@@ -281,7 +279,7 @@ class DrawingTools:
                 self.canvas.create_text(x, y, text=text_content, anchor=tk.NW,
                                         font=(self.text_font, font_size), fill=self.text_color,
                                         tags="drawn_item")
-                string_data = [str(self.tool), str(self.pen_color), str(font_size), str(x), str(y), '', '', str(text_content)]
+                string_data = [str(self.tool), str(self.pen_color), str(font_size), str(x), str(y), str(text_content)]
                 msg = ":".join(string_data)
 
                 if self.peer:
@@ -327,14 +325,14 @@ class DrawingTools:
                                     capstyle=tk.ROUND, smooth=tk.TRUE, tags="drawn_item")
 
             string_data = [self.tool, self.pen_color, str(self.pen_size), str(self.start_x), str(self.start_y), str(x),
-                           str(y), '']
+                           str(y)]
             self.start_x, self.start_y = x, y
         elif self.tool == "eraser":
             self.canvas.create_line(self.start_x, self.start_y, x, y,
                                     fill="white", width=self.pen_size * 2,
                                     capstyle=tk.ROUND, smooth=tk.TRUE, tags="drawn_item")
             string_data = [self.tool, self.pen_color, str(self.pen_size), str(self.start_x), str(self.start_y), str(x),
-                           str(y), '']
+                           str(y)]
             self.start_x, self.start_y = x, y
         return string_data
 
@@ -354,17 +352,17 @@ class DrawingTools:
                                                          fill=self.pen_color, width=self.pen_size,
                                                          capstyle=tk.ROUND, smooth=tk.TRUE, tags="drawn_item")
             string_data = [self.tool, self.pen_color, str(self.pen_size), str(self.start_x), str(self.start_y),
-                           str(x), str(y), '']
+                           str(x), str(y)]
         elif self.tool == "rectangle":
             self.id_last_shape = self.canvas.create_rectangle(bbox[0], bbox[1], bbox[2], bbox[3],
                                                               outline=self.pen_color, width=self.pen_size,
                                                               tags="drawn_item")
             string_data = [self.tool, self.pen_color, str(self.pen_size), str(bbox[0]), str(bbox[1]),
-                           str(bbox[2]), str(bbox[3]), '']
+                           str(bbox[2]), str(bbox[3])]
         elif self.tool == "circle":
             self.id_last_shape = self.canvas.create_oval(bbox[0], bbox[1], bbox[2], bbox[3],
                                                          outline=self.pen_color, width=self.pen_size, tags="drawn_item")
             string_data = [self.tool, self.pen_color, str(self.pen_size), str(bbox[0]), str(bbox[1]),
-                           str(bbox[2]), str(bbox[3]), '']
+                           str(bbox[2]), str(bbox[3])]
 
         return string_data
