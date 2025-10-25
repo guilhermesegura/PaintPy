@@ -106,7 +106,7 @@ class Peer:
         while True:
             try:
                 # mensagem em binário
-                data = peer_socket.recv(2046)
+                data = peer_socket.recv(2048)
                 # se a conexão for fechada pelo outro peer
                 if not data:
                     raise Exception("Peer desconectado")
