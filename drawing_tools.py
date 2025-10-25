@@ -163,7 +163,7 @@ class DrawingTools:
                 x2 = int(parts[6])
                 y2 = int(parts[7])
             else:
-                extra_data = parts[6]
+                extra_data = ':'.join(parts[6:]).strip()
 
             if tool == "line":
 
