@@ -112,7 +112,7 @@ class DrawingTools:
             # Bind Return key to finalize text
             self.text_entry_widget.bind("<Return>", self._finalize_text)
             # Bind Escape key to cancel text entry
-            self.text_entry_widget.bind("<Escape>", self._cancel_text_entry())
+            self.text_entry_widget.bind("<Escape>", self._cancel_text_entry)
 
 
     def apply_remote_action(self, message):
