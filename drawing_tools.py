@@ -68,7 +68,7 @@ class DrawingTools:
         self.canvas.config(cursor="crosshair" if tool_name in ["pen", "eraser", "line", "rectangle", "circle", "text"] else "arrow")
         self.start_x, self.start_y = None, None
 
-    def _cancel_text_entry(self):
+    def _cancel_text_entry(self, event=''):
         """
         Remove o text widget inicial.
         """
